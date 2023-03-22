@@ -8,20 +8,47 @@ use Modules\User\src\Http\Middlewares\DemoMiddleware;
 
 class ModuleServiceProvider extends ServiceProvider
 {
+    private $middlewares=[
+        'demo'=> DemoMiddleware::class,
+    ];
+    private $commands=[
+        TestCommand::class,
+    ];
 
     public function boot(){
         // $dir=File::directories(__DIR__);//lay folder hien tai
         //thong qua array_map lay basename
-        $directories=array_map('basename',File::directories(__DIR__));
-        if(!empty($directories)){
+        $modules=$this->getModule();
+        if(!empty($modules)){
             //neu ton tai folder trong module
-            foreach($directories as $directory)
+            foreach($modules as $module)
             {
-                $this->registerModule($directory);
+                $this->registerModule($module);
             }
         }
     }
-    public function registerModule($module){
+    public function register()
+    {
+        $modules=$this->getModule();
+
+        //Configs
+        if(!empty($modules)){
+            //neu ton tai folder trong module
+            foreach($modules as $module)
+            {
+               $this->registerConfig($module);
+            }
+        }
+
+        // Middlaware
+        $this->registerMiddleware();
+        // Commands
+
+        $this->commands($this->commands);
+
+    }
+    public function registerModule($module)
+    {
         $modulePath=__DIR__.'/'.$module;
         //khai bao cac thanh phan
         // dd($modulePath);
@@ -60,45 +87,31 @@ class ModuleServiceProvider extends ServiceProvider
             }
         }
     }
-    public function register()
+    private function getModule()
     {
         $directories=array_map('basename',File::directories(__DIR__));
-
-        //Configs
-        if(!empty($directories)){
-            //neu ton tai folder trong module
-            foreach($directories as $directory)
-            {
-                $configPath=__DIR__.'/'.$directory.'/configs';
-                if(File::exists($configPath)){
-                    $configFiles=array_map('basename',File::allFiles($configPath));
-                    foreach($configFiles as $config){
-                        $alias=basename($config,'.php');
-                        $this->mergeConfigFrom($configPath.'/'.$config,$alias);
-                    }
-                }
+        return $directories;
+    }
+    private function registerConfig($module)
+    {
+        $configPath=__DIR__.'/'.$module.'/configs';
+        if(File::exists($configPath)){
+            $configFiles=array_map('basename',File::allFiles($configPath));
+            foreach($configFiles as $config){
+                $alias=basename($config,'.php');
+                $this->mergeConfigFrom($configPath.'/'.$config,$alias);
             }
         }
-
-        // Middlaware
-
-        $middlewares=[
-            'demo'=> DemoMiddleware::class,
-        ];
-        if(!empty($middlewares))
+    }
+    private function registerMiddleware()
+    {
+        if(!empty($this->middlewares))
         {
-            foreach($middlewares as $key => $middleware)
+            foreach($this->middlewares as $key => $middleware)
             {
                 $this->app['router']->pushMiddlewareToGroup($key,$middleware);
             }
         }
-
-
-        // Commands
-
-        $this->commands([
-            TestCommand::class,
-        ]);
-
     }
+
 }
